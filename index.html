@@ -22,13 +22,12 @@
     <div class="sticky-top-soft">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <div>
-          <h5 class="mb-0">🐷 Partos próximos</h5>
-          <small class="text-muted">Gestación fija: 114 días</small>
+          <h5 class="mb-0">🐷 Partos</h5>
+          <small class="text-muted">Gestación: 114 días</small>
         </div>
         <button id="btnRefresh" class="btn btn-outline-secondary btn-sm">Actualizar</button>
       </div>
 
-      <!-- ✅ Botón desplegable -->
       <div class="d-grid mb-2">
         <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#panelAdd" aria-expanded="false">
           ➕ Agregar marrana
@@ -41,17 +40,17 @@
             <h6 class="mb-3">Nueva marrana</h6>
             <form id="formAdd" class="row g-2">
               <div class="col-12">
-                <label class="form-label mb-1">Nickname (único)</label>
-                <input id="nickname" class="form-control" placeholder="Ej. Luna" required />
+                <label class="form-label mb-1">Nombre (único)</label>
+                <input id="nickname" class="form-control" placeholder="Ej. Chela" required />
               </div>
 
               <div class="col-12">
-                <label class="form-label mb-1">Fecha de inseminación</label>
+                <label class="form-label mb-1">Día de inseminación</label>
                 <input id="inseminacion" type="date" class="form-control" required />
               </div>
 
               <div class="col-12">
-                <label class="form-label mb-1">Notas</label>
+                <label class="form-label mb-1">Nota</label>
                 <input id="notas" class="form-control" placeholder="Opcional" />
               </div>
 
@@ -61,25 +60,24 @@
             </form>
 
             <small class="text-muted d-block mt-2">
-              Fecha probable = inseminación + 114 días.
+              (Se calcula sola la fecha probable)
             </small>
           </div>
         </div>
       </div>
-
     </div>
 
     <div class="d-flex gap-2 align-items-center mb-2">
       <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" id="showHistorial">
-        <label class="form-check-label" for="showHistorial">Mostrar ya parieron</label>
+        <label class="form-check-label" for="showHistorial">Ver las que ya parieron</label>
       </div>
       <span id="status" class="text-muted small"></span>
     </div>
 
     <div id="list" class="d-grid gap-2"></div>
 
-    <!-- ✅ Modal para reinseminar -->
+    <!-- Modal para reinseminar -->
     <div class="modal fade" id="modalRe" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -91,14 +89,14 @@
             <div class="modal-body">
               <input type="hidden" id="re_id" />
               <div class="mb-3">
-                <label class="form-label">Nueva fecha de inseminación</label>
+                <label class="form-label">Nueva fecha</label>
                 <input type="date" class="form-control" id="re_fecha" required />
               </div>
               <div class="mb-1">
-                <label class="form-label">Notas (opcional)</label>
+                <label class="form-label">Nota</label>
                 <input type="text" class="form-control" id="re_notas" placeholder="Opcional" />
               </div>
-              <small class="text-muted">Esto reusa la misma marrana (no crea otra fila).</small>
+              <small class="text-muted">No crea otra marrana, solo reinicia.</small>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -114,7 +112,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // === CONFIGURA AQUÍ ===
     const API_URL = "https://script.google.com/macros/s/AKfycbzKa6UML-P3_zq5N5srNXgIbiWU-FAr5iWNsKuX78XCWdIBjNePLVFqpDz4Xrz8jLLy/exec";
     const API_KEY = "ERICO12345";
 
@@ -126,53 +123,86 @@
         const cbName = "cb_" + Math.random().toString(36).slice(2);
         const script = document.createElement("script");
         const timeout = setTimeout(() => { cleanup(); reject(new Error("Tiempo de espera")); }, 15000);
-
         function cleanup() { clearTimeout(timeout); delete window[cbName]; script.remove(); }
-
         window[cbName] = (data) => { cleanup(); resolve(data); };
-
         const sep = url.includes("?") ? "&" : "?";
         script.src = url + sep + "callback=" + cbName;
-        script.onerror = () => { cleanup(); reject(new Error("Error cargando JSONP")); };
+        script.onerror = () => { cleanup(); reject(new Error("Error cargando")); };
         document.body.appendChild(script);
       });
+    }
+
+    function todayYMD() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const da = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${da}`;
     }
 
     function ymdToDate(ymd) {
       const [y,m,d] = String(ymd).slice(0,10).split("-").map(Number);
       return new Date(y, m-1, d);
     }
-    function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate()+days); return d; }
-    function fmtDate(d) {
-      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), da=String(d.getDate()).padStart(2,"0");
-      return `${y}-${m}-${da}`;
+
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate()+days);
+      return d;
     }
-    function daysBetween(a, b) { return Math.floor((b.getTime() - a.getTime())/(1000*60*60*24)); }
+
+    function daysBetween(a, b) {
+      return Math.floor((b.getTime() - a.getTime())/(1000*60*60*24));
+    }
+
+    //  FECHA BONITA EN ESPAÑOL: "10 de febrero de 2026"
+    function formatDateEs(ymd) {
+      if (!ymd) return "";
+      const d = ymdToDate(ymd);
+      return d.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+    }
 
     function badgeFor(daysToDue) {
-      if (daysToDue < 0) return `<span class="badge text-bg-danger badge-soft">ATRASADA ${Math.abs(daysToDue)}d</span>`;
+      if (daysToDue < 0) return `<span class="badge text-bg-danger badge-soft">ATRASADA</span>`;
       if (daysToDue === 0) return `<span class="badge text-bg-danger badge-soft">HOY</span>`;
-      if (daysToDue <= AVISO_MOVER_A_PARIDERA_DIAS) return `<span class="badge text-bg-warning badge-soft text-dark">Mover a paridera</span>`;
+      if (daysToDue <= AVISO_MOVER_A_PARIDERA_DIAS) return `<span class="badge text-bg-warning badge-soft text-dark">A paridera</span>`;
       return `<span class="badge text-bg-success badge-soft">En tiempo</span>`;
     }
-    function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-    function setStatus(msg){ document.getElementById("status").textContent = msg; }
+
+    function escapeHtml(s){
+      return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function setStatus(msg){
+      document.getElementById("status").textContent = msg;
+    }
 
     async function apiList() {
       return await jsonp(`${API_URL}?key=${encodeURIComponent(API_KEY)}&action=list`);
     }
+
     async function apiAdd(payload) {
-      const q = new URLSearchParams({ key: API_KEY, action:"add", nickname: payload.nickname, inseminacion: payload.inseminacion, notas: payload.notas || "" });
+      const q = new URLSearchParams({
+        key: API_KEY, action:"add",
+        nickname: payload.nickname,
+        inseminacion: payload.inseminacion,
+        notas: payload.notas || ""
+      });
       return await jsonp(`${API_URL}?${q.toString()}`);
     }
+
     async function apiDelete(id) {
       const q = new URLSearchParams({ key: API_KEY, action:"delete", id });
       return await jsonp(`${API_URL}?${q.toString()}`);
     }
+
     async function apiMarkPario(id, ya_pario=true) {
-      const q = new URLSearchParams({ key: API_KEY, action:"mark_pario", id, ya_pario: ya_pario ? "TRUE":"FALSE" });
+      const params = { key: API_KEY, action:"mark_pario", id, ya_pario: ya_pario ? "TRUE":"FALSE" };
+      if (ya_pario) params.fecha_parto_real = todayYMD();
+      const q = new URLSearchParams(params);
       return await jsonp(`${API_URL}?${q.toString()}`);
     }
+
     async function apiReinseminar(id, inseminacion, notas="") {
       const q = new URLSearchParams({ key: API_KEY, action:"reinseminar", id, inseminacion, notas });
       return await jsonp(`${API_URL}?${q.toString()}`);
@@ -181,106 +211,134 @@
     async function loadAndRender() {
       setStatus("Cargando...");
       const resp = await apiList();
-      if (!resp.ok) throw new Error(resp.error || "Error listando");
+      if (!resp.ok) throw new Error(resp.error || "Error");
 
-      const showHistorial = document.getElementById("showHistorial").checked;
+      const verYaParieron = document.getElementById("showHistorial").checked;
       const today = new Date();
 
       let rows = (resp.data || []).map(r => {
-        const due = addDays(ymdToDate(r.inseminacion), GESTACION_DIAS);
-        const daysToDue = daysBetween(today, due);
-        return { ...r, due_ymd: fmtDate(due), daysToDue };
+        const insemiDate = ymdToDate(r.inseminacion);
+        const dueDate = addDays(insemiDate, GESTACION_DIAS);
+        const daysToDue = daysBetween(today, dueDate);
+
+        const partoReal = r.fecha_parto_real ? ymdToDate(r.fecha_parto_real) : null;
+        const diasDesdeParto = partoReal ? daysBetween(partoReal, today) : null;
+
+        return {
+          ...r,
+          due_ymd: (dueDate.getFullYear()+"-"+String(dueDate.getMonth()+1).padStart(2,"0")+"-"+String(dueDate.getDate()).padStart(2,"0")),
+          daysToDue,
+          diasDesdeParto
+        };
       });
 
-      if (!showHistorial) rows = rows.filter(r => !r.ya_pario);
-      rows.sort((a,b) => a.daysToDue - b.daysToDue);
+      //  OFF = pendientes, ON = solo ya parieron
+      rows = verYaParieron ? rows.filter(r => r.ya_pario) : rows.filter(r => !r.ya_pario);
 
-      render(rows);
+      // Orden simple:
+      if (!verYaParieron) {
+        rows.sort((a,b) => a.daysToDue - b.daysToDue); // próximas primero
+      } else {
+        rows.sort((a,b) => (a.diasDesdeParto ?? 999999) - (b.diasDesdeParto ?? 999999)); // recientes primero
+      }
+
+      render(rows, verYaParieron);
       setStatus(`${rows.length} mostradas`);
     }
 
-    function render(rows) {
+    function render(rows, verYaParieron) {
       const el = document.getElementById("list");
+
       if (!rows.length) {
-        el.innerHTML = `<div class="alert alert-light card-soft">No hay marranas para mostrar.</div>`;
+        el.innerHTML = `<div class="alert alert-light card-soft">${verYaParieron ? "No hay marcadas como: ya parió" : "No hay pendientes"}</div>`;
         return;
       }
 
-      el.innerHTML = rows.map(r => `
-        <div class="card card-soft">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start gap-2">
-              <div>
-                <div class="d-flex align-items-center gap-2">
-                  <h6 class="mb-0">${escapeHtml(r.nickname)}</h6>
-                  <span class="text-muted small mono">${escapeHtml(r.id)}</span>
-                  ${r.ya_pario ? `<span class="badge text-bg-secondary badge-soft">YA PARIÓ</span>` : ``}
-                </div>
+      el.innerHTML = rows.map(r => {
+        const insemiBonita = formatDateEs(r.inseminacion);
+        const probableBonita = formatDateEs(r.due_ymd);
+        const partoRealBonita = formatDateEs(r.fecha_parto_real);
 
-                <div class="small text-muted mt-1">
-                  Inseminación: <span class="mono">${escapeHtml(r.inseminacion)}</span>
-                  · Gestación: <span class="mono">${GESTACION_DIAS}d</span>
-                </div>
+        // Textos simples:
+        const lineaPrincipal = r.ya_pario
+          ? `<div class="fw-semibold">Parió el: <span>${escapeHtml(partoRealBonita)}</span></div>`
+          : `<div class="fw-semibold">Debe parir: <span>${escapeHtml(probableBonita)}</span></div>`;
 
-                <div class="mt-2">
-                  <div class="fw-semibold">Parto probable: <span class="mono">${r.due_ymd}</span></div>
-                  <div class="small text-muted">
-                    ${r.daysToDue < 0 ? `Debió parir hace <b>${Math.abs(r.daysToDue)}</b> días` :
-                      (r.daysToDue === 0 ? `Debe parir <b>hoy</b>` : `Faltan <b>${r.daysToDue}</b> días`)}
+        const lineaDias = r.ya_pario
+          ? `<div class="small text-muted">Han pasado <b>${r.diasDesdeParto}</b> días</div>`
+          : (r.daysToDue < 0
+              ? `<div class="small text-muted">Atrasada: <b>${Math.abs(r.daysToDue)}</b> días</div>`
+              : (r.daysToDue === 0
+                  ? `<div class="small text-muted"><b>Es hoy</b></div>`
+                  : `<div class="small text-muted">Faltan <b>${r.daysToDue}</b> días</div>`));
+
+        return `
+          <div class="card card-soft">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <div class="d-flex align-items-center gap-2">
+                    <h6 class="mb-0">${escapeHtml(r.nickname)}</h6>
+                    <span class="text-muted small mono">${escapeHtml(r.id)}</span>
+                    ${r.ya_pario ? `<span class="badge text-bg-secondary badge-soft">YA PARIÓ</span>` : ``}
                   </div>
 
-                  ${r.notas ? `<div class="small mt-2">📝 ${escapeHtml(r.notas)}</div>` : ``}
+                  <div class="small text-muted mt-1">
+                    Inseminación: <span>${escapeHtml(insemiBonita)}</span>
+                  </div>
+
+                  <div class="mt-2">
+                    ${lineaPrincipal}
+                    ${lineaDias}
+                    ${r.notas ? `<div class="small mt-2">📝 ${escapeHtml(r.notas)}</div>` : ``}
+                  </div>
                 </div>
-              </div>
 
-              <div class="text-end d-grid gap-2">
-                ${r.ya_pario ? `<span class="badge text-bg-secondary badge-soft">Lista para re-enseminar</span>` : badgeFor(r.daysToDue)}
+                <div class="text-end d-grid gap-2">
+                  ${r.ya_pario ? `<span class="badge text-bg-secondary badge-soft">Lista</span>` : badgeFor(r.daysToDue)}
 
-                ${r.ya_pario ? `
-                  <button class="btn btn-primary btn-sm" data-re="${escapeHtml(r.id)}" data-re-nick="${escapeHtml(r.nickname)}">🔁 Re-enseminar</button>
-                ` : `
-                  <button class="btn btn-success btn-sm" data-pario="${escapeHtml(r.id)}">✅ Ya parió</button>
-                `}
+                  ${r.ya_pario ? `
+                    <button class="btn btn-primary btn-sm" data-re="${escapeHtml(r.id)}">🔁 Re-enseminar</button>
+                  ` : `
+                    <button class="btn btn-success btn-sm" data-pario="${escapeHtml(r.id)}">✅ Ya parió</button>
+                  `}
 
-                <button class="btn btn-outline-danger btn-sm" data-del="${escapeHtml(r.id)}">🗑️ Eliminar</button>
+                  <button class="btn btn-outline-danger btn-sm" data-del="${escapeHtml(r.id)}">🗑️ Eliminar</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
 
-      // Eliminar (muerte) = borrar fila
       el.querySelectorAll("button[data-del]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const id = btn.getAttribute("data-del");
-          if (!confirm(`¿Eliminar ${id}? Esto borra la fila del Sheet.`)) return;
+          if (!confirm("¿Eliminar?")) return;
           setStatus("Eliminando...");
           const resp = await apiDelete(id);
-          if (!resp.ok) return alert(resp.error || "Error eliminando");
+          if (!resp.ok) return alert(resp.error || "Error");
           await loadAndRender();
         });
       });
 
-      // Ya parió
       el.querySelectorAll("button[data-pario]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const id = btn.getAttribute("data-pario");
-          if (!confirm("¿Marcar como 'Ya parió'?")) return;
+          if (!confirm("¿Ya parió hoy?")) return;
           setStatus("Guardando...");
           const resp = await apiMarkPario(id, true);
-          if (!resp.ok) return alert(resp.error || "Error marcando");
+          if (!resp.ok) return alert(resp.error || "Error");
           await loadAndRender();
         });
       });
 
-      // Abrir modal Re-enseminar
       el.querySelectorAll("button[data-re]").forEach(btn => {
         btn.addEventListener("click", () => {
           document.getElementById("re_id").value = btn.getAttribute("data-re");
           document.getElementById("re_fecha").value = "";
           document.getElementById("re_notas").value = "";
-          const modal = new bootstrap.Modal(document.getElementById("modalRe"));
-          modal.show();
+          new bootstrap.Modal(document.getElementById("modalRe")).show();
         });
       });
     }
@@ -293,15 +351,10 @@
 
       setStatus("Guardando...");
       const resp = await apiAdd({ nickname, inseminacion, notas });
-      if (!resp.ok) return alert(resp.error || "Error guardando");
+      if (!resp.ok) return alert(resp.error || "Error");
 
       ev.target.reset();
-
-      // cerrar panel (opcional)
-      const panel = document.getElementById("panelAdd");
-      const bs = bootstrap.Collapse.getOrCreateInstance(panel);
-      bs.hide();
-
+      bootstrap.Collapse.getOrCreateInstance(document.getElementById("panelAdd")).hide();
       await loadAndRender();
     });
 
@@ -311,11 +364,10 @@
       const fecha = document.getElementById("re_fecha").value;
       const notas = document.getElementById("re_notas").value.trim();
 
-      setStatus("Re-enseminando...");
+      setStatus("Guardando...");
       const resp = await apiReinseminar(id, fecha, notas);
-      if (!resp.ok) return alert(resp.error || "Error re-enseminando");
+      if (!resp.ok) return alert(resp.error || "Error");
 
-      // cerrar modal
       bootstrap.Modal.getInstance(document.getElementById("modalRe")).hide();
       await loadAndRender();
     });
